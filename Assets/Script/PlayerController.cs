@@ -1,19 +1,25 @@
 using System.Collections;
+using System;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.InputSystem;
+
+
 
 public class PlayerController : Singleton<PlayerController>
 {
     private PlayerControls playerInput;
+    private MoveState moveState;
+    [SerializeField] private LayerMask layerMask;
+    [SerializeField] private GameObject leftRaycast;
+    [SerializeField] private GameObject rightRaycast;
 
     protected override void Awake()
     {
         base.Awake();
         playerInput = new PlayerControls();
-        playerInput.Player.Move.performed += ctx => RotatePlayer(playerInput.Player.Move.ReadValue<Vector2>());
-        playerInput.Player.Move.canceled += ctx => RotatePlayer(playerInput.Player.Move.ReadValue<Vector2>());
+        playerInput.Player.Move.performed += ctx => MovePlayer(playerInput.Player.Move.ReadValue<Vector2>());
+        playerInput.Player.Move.canceled += ctx => MovePlayer(playerInput.Player.Move.ReadValue<Vector2>());
+        moveState = MoveState.Swimming;
     }
 
     private void OnEnable()
@@ -26,27 +32,84 @@ public class PlayerController : Singleton<PlayerController>
         playerInput.Disable();
     }
 
-    private void RotatePlayer(Vector2 joystickOrientation)
+    private void MovePlayer(Vector2 joystickOrientation)
     {
-        // Make the player face the direction pointed by the joystick
-        if (joystickOrientation != Vector2.zero)
+        if (moveState == MoveState.Swimming)
         {
-            float angle = Mathf.Atan2(-joystickOrientation.x, joystickOrientation.y) * Mathf.Rad2Deg;
-            transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+            // Make the player face the direction pointed by the joystick
+            if (joystickOrientation != Vector2.zero)
+            {
+                float angle = Mathf.Atan2(-joystickOrientation.x, joystickOrientation.y) * Mathf.Rad2Deg;
+                transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+            }
+        }
+        else
+        {
+            //Make the player look at the opposite of the wall he is fixed to
         }
     }
 
     private void Update()
     {
         // Move the player
-        if (playerInput.Player.Move.ReadValue<Vector2>() != Vector2.zero && gameObject.GetComponent<Rigidbody2D>().velocity.magnitude < .1f)
+        if (moveState == MoveState.Swimming)
         {
-            gameObject.GetComponent<Rigidbody2D>().AddForce(playerInput.Player.Move.ReadValue<Vector2>() * 40, ForceMode2D.Impulse);
+            if (playerInput.Player.Move.ReadValue<Vector2>() != Vector2.zero && gameObject.GetComponent<Rigidbody2D>().velocity.magnitude < .1f)
+            {
+                gameObject.GetComponent<Rigidbody2D>().AddForce(playerInput.Player.Move.ReadValue<Vector2>() * 40, ForceMode2D.Impulse);
+            }
+        }
+        else
+        {
+            // Throwing 2 rays to check if the player is aligned with a wall inclinasion
+            RaycastHit2D leftRay = Physics2D.Raycast(leftRaycast.transform.position, -transform.up, 100f, layerMask);
+            RaycastHit2D rightRay = Physics2D.Raycast(rightRaycast.transform.position, -transform.up, 100f, layerMask);
+            Debug.DrawRay(leftRaycast.transform.position, -transform.up, Color.red);
+            Debug.DrawRay(rightRaycast.transform.position, -transform.up, Color.magenta);
+
+            //Debug.Log("Left: " + Vector2.Distance(leftRaycast.transform.position, leftRay.point) + " | Right: " + Vector2.Distance(rightRaycast.transform.position, rightRay.point));
+            Vector3 dir = (leftRay.point - rightRay.point).normalized;
+            Vector3 playerAlignement = (leftRaycast.transform.position - rightRaycast.transform.position).normalized;
+            Debug.Log("dir: " + dir + " || alignement: " + playerAlignement);
+            //Debug.DrawRay(rightRay.point, dir, Color.green);
+
+            // Rotate the player if he is not aligned with the wall
+            if (Math.Round(dir.x, 1) != Math.Round(playerAlignement.x, 1) || Math.Round(dir.y, 1) != Math.Round(playerAlignement.y, 1))
+            {
+                transform.rotation = Quaternion.LookRotation(dir) * Quaternion.FromToRotation(Vector3.right, Vector3.forward);
+                Vector3 eulerRotation = transform.rotation.eulerAngles;
+                transform.rotation = Quaternion.Euler(0, 0, -eulerRotation.z);
+            }
+
+            // Move the player closer to the wall if he is to far
+            if (Vector2.Distance(leftRaycast.transform.position, leftRay.point) > .8f)
+                transform.Translate(-transform.up * 5f * Time.deltaTime);
+            // Move the player farther to the wall if he is to close
+            else if (Vector2.Distance(leftRaycast.transform.position, leftRay.point) < .7f)
+                transform.Translate(transform.up * 5f * Time.deltaTime);
+            transform.Translate(new Vector3(playerInput.Player.Move.ReadValue<Vector2>().x, 0, 0) * 10f * Time.deltaTime);
         }
     }
 
-    public Vector2 GetDirection()
+    private void OnCollisionEnter2D(Collision2D collision)
     {
-        return playerInput.Player.Move.ReadValue<Vector2>();
+        if (collision.gameObject.tag == "Wall")
+        {
+            //SetMoveState(MoveState.Grabbing);
+        }
+    }
+
+    public void ToggleMoveState()
+    {
+        if (this.moveState == MoveState.Swimming)
+            this.moveState = MoveState.Grabbing;
+        else
+            this.moveState = MoveState.Swimming;
+    }
+
+    public enum MoveState
+    {
+        Swimming,
+        Grabbing
     }
 }
