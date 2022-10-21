@@ -3,8 +3,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-
-
 public class PlayerController : Singleton<PlayerController>
 {
     private PlayerControls playerInput;
@@ -12,6 +10,7 @@ public class PlayerController : Singleton<PlayerController>
     [SerializeField] private LayerMask layerMask;
     [SerializeField] private GameObject leftRaycast;
     [SerializeField] private GameObject rightRaycast;
+    [SerializeField] private GameModulator gameModulator;
 
     protected override void Awake()
     {
@@ -54,9 +53,9 @@ public class PlayerController : Singleton<PlayerController>
         // Move the player
         if (moveState == MoveState.Swimming)
         {
-            if (playerInput.Player.Move.ReadValue<Vector2>() != Vector2.zero && gameObject.GetComponent<Rigidbody2D>().velocity.magnitude < .1f)
+            if (playerInput.Player.Move.ReadValue<Vector2>() != Vector2.zero && gameObject.GetComponent<Rigidbody2D>().velocity.magnitude < gameModulator.swimSpeedBeforeNextMove)
             {
-                gameObject.GetComponent<Rigidbody2D>().AddForce(playerInput.Player.Move.ReadValue<Vector2>() * 40, ForceMode2D.Impulse);
+                gameObject.GetComponent<Rigidbody2D>().AddForce(playerInput.Player.Move.ReadValue<Vector2>() * gameModulator.swimPropulsionPower, ForceMode2D.Impulse);
             }
         }
         else
@@ -82,12 +81,12 @@ public class PlayerController : Singleton<PlayerController>
             }
 
             // Move the player closer to the wall if he is to far
-            if (Vector2.Distance(leftRaycast.transform.position, leftRay.point) > .8f)
+            if (Vector2.Distance(leftRaycast.transform.position, leftRay.point) > gameModulator.grabDistanceWhileMove + .1)
                 transform.Translate(-transform.up * 5f * Time.deltaTime);
             // Move the player farther to the wall if he is to close
-            else if (Vector2.Distance(leftRaycast.transform.position, leftRay.point) < .7f)
+            else if (Vector2.Distance(leftRaycast.transform.position, leftRay.point) < gameModulator.grabDistanceWhileMove)
                 transform.Translate(transform.up * 5f * Time.deltaTime);
-            transform.Translate(new Vector3(playerInput.Player.Move.ReadValue<Vector2>().x, 0, 0) * 10f * Time.deltaTime);
+            transform.Translate(new Vector3(playerInput.Player.Move.ReadValue<Vector2>().x, 0, 0) * gameModulator.grabMoveSpeed * Time.deltaTime);
         }
     }
 
