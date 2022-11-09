@@ -18,6 +18,8 @@ public class PlayerController : Singleton<PlayerController>
         playerInput = new PlayerControls();
         playerInput.Player.Move.performed += ctx => MovePlayer(playerInput.Player.Move.ReadValue<Vector2>());
         playerInput.Player.Move.canceled += ctx => MovePlayer(playerInput.Player.Move.ReadValue<Vector2>());
+        playerInput.Player.Expulse.started += ctx => ExpulsePlayer(playerInput.Player.Move.ReadValue<Vector2>());
+
         moveState = MoveState.Swimming;
     }
 
@@ -42,9 +44,23 @@ public class PlayerController : Singleton<PlayerController>
                 transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
             }
         }
-        else
+    }
+    private void ExpulsePlayer(Vector2 joystickOrientation)
+    {
+        if (moveState == MoveState.Grabbing)
         {
-            //Make the player look at the opposite of the wall he is fixed to
+            // Make the player jump from the wall to swim
+            moveState = MoveState.Swimming;
+            if (joystickOrientation != Vector2.zero)
+            {
+                float angle = Mathf.Atan2(-joystickOrientation.x, joystickOrientation.y) * Mathf.Rad2Deg;
+                transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+                gameObject.GetComponent<Rigidbody2D>().AddForce(playerInput.Player.Move.ReadValue<Vector2>() * gameModulator.swimPropulsionPower, ForceMode2D.Impulse);
+            }
+            else
+            {
+                gameObject.GetComponent<Rigidbody2D>().AddForce(transform.up * gameModulator.swimPropulsionPower, ForceMode2D.Impulse);
+            }
         }
     }
 
@@ -81,7 +97,7 @@ public class PlayerController : Singleton<PlayerController>
                 */
                 float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg - 180;
                 Quaternion q = Quaternion.AngleAxis(angle, Vector3.forward);
-                transform.rotation = Quaternion.Slerp(transform.rotation, q, Time.deltaTime * 10);
+                transform.rotation = Quaternion.Slerp(transform.rotation, q, Time.deltaTime * gameModulator.grabRotationSpeed);
             }
 
             // Move the player closer to the wall if he is to far
@@ -105,9 +121,16 @@ public class PlayerController : Singleton<PlayerController>
     {
         if (collision.gameObject.tag == "Wall")
         {
-            //SetMoveState(MoveState.Grabbing);
+            if (moveState == MoveState.Swimming)
+            {
+                moveState = MoveState.Grabbing;
+                Debug.DrawRay(collision.contacts[0].point, Vector3.up, Color.white, 5f);
+                transform.rotation = Quaternion.LookRotation(Vector3.forward, collision.contacts[0].normal);
+            }
         }
     }
+    
+    
 
     public void ToggleMoveState()
     {

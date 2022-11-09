@@ -9,4 +9,5 @@ public class GameModulator : ScriptableObject
     public float swimSpeedBeforeNextMove;
     public float grabMoveSpeed;
     public float grabDistanceWhileMove;
+    public float grabRotationSpeed; 
 }
