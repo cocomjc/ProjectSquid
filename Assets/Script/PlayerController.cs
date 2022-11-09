@@ -70,22 +70,33 @@ public class PlayerController : Singleton<PlayerController>
             Vector3 dir = (leftRay.point - rightRay.point).normalized;
             Vector3 playerAlignement = (leftRaycast.transform.position - rightRaycast.transform.position).normalized;
             Debug.Log("dir: " + dir + " || alignement: " + playerAlignement);
-            //Debug.DrawRay(rightRay.point, dir, Color.green);
+            Debug.DrawRay(rightRay.point, dir, Color.green);
 
             // Rotate the player if he is not aligned with the wall
             if (Math.Round(dir.x, 1) != Math.Round(playerAlignement.x, 1) || Math.Round(dir.y, 1) != Math.Round(playerAlignement.y, 1))
             {
-                transform.rotation = Quaternion.LookRotation(dir) * Quaternion.FromToRotation(Vector3.right, Vector3.forward);
-                Vector3 eulerRotation = transform.rotation.eulerAngles;
-                transform.rotation = Quaternion.Euler(0, 0, -eulerRotation.z);
+                /*                transform.rotation = Quaternion.LookRotation(dir) * Quaternion.FromToRotation(Vector3.right, Vector3.forward);
+                                Vector3 eulerRotation = transform.rotation.eulerAngles;
+                                transform.rotation = Quaternion.Euler(0, 0, eulerRotation.z > 0 ? -eulerRotation.z : eulerRotation.z);
+                */
+                float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg - 180;
+                Quaternion q = Quaternion.AngleAxis(angle, Vector3.forward);
+                transform.rotation = Quaternion.Slerp(transform.rotation, q, Time.deltaTime * 10);
             }
 
             // Move the player closer to the wall if he is to far
             if (Vector2.Distance(leftRaycast.transform.position, leftRay.point) > gameModulator.grabDistanceWhileMove + .1)
-                transform.Translate(-transform.up * 5f * Time.deltaTime);
+            {
+                transform.Translate(-transform.up * 5f * Time.deltaTime, Space.World);
+                Debug.Log("getting closer to the wall");
+                Debug.DrawRay(transform.position, -transform.up, Color.red);
+            }
             // Move the player farther to the wall if he is to close
-            else if (Vector2.Distance(leftRaycast.transform.position, leftRay.point) < gameModulator.grabDistanceWhileMove)
-                transform.Translate(transform.up * 5f * Time.deltaTime);
+            else if (Vector2.Distance(leftRaycast.transform.position, leftRay.point) < gameModulator.grabDistanceWhileMove) {
+                transform.Translate(transform.up * 5f * Time.deltaTime, Space.World);
+                Debug.Log("getting farther to the wall");
+                Debug.DrawRay(transform.position, transform.up, Color.red);
+            }
             transform.Translate(new Vector3(playerInput.Player.Move.ReadValue<Vector2>().x, 0, 0) * gameModulator.grabMoveSpeed * Time.deltaTime);
         }
     }
