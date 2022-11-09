@@ -7,6 +7,7 @@ public class PlayerController : Singleton<PlayerController>
 {
     private PlayerControls playerInput;
     private MoveState moveState;
+    [SerializeField]  private WeaponComponent weaponComponent;
     [SerializeField] private LayerMask layerMask;
     [SerializeField] private GameObject leftRaycast;
     [SerializeField] private GameObject rightRaycast;
@@ -17,8 +18,8 @@ public class PlayerController : Singleton<PlayerController>
         base.Awake();
         playerInput = new PlayerControls();
         playerInput.Player.Move.performed += ctx => MovePlayer(playerInput.Player.Move.ReadValue<Vector2>());
-        playerInput.Player.Move.canceled += ctx => MovePlayer(playerInput.Player.Move.ReadValue<Vector2>());
         playerInput.Player.Expulse.started += ctx => ExpulsePlayer(playerInput.Player.Move.ReadValue<Vector2>());
+        playerInput.Player.Aim.performed += ctx => weaponComponent.Aim(playerInput.Player.Aim.ReadValue<Vector2>());
 
         moveState = MoveState.Swimming;
     }

@@ -14,5 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   swimPropulsionPower: 60
   swimSpeedBeforeNextMove: 0.1
-  grabMoveSpeed: 20
+  grabMoveSpeed: 30
   grabDistanceWhileMove: 0.7
+  grabRotationSpeed: 100
+  projectileSpeed: 20
+  projectileFireRate: 0.1
+  projectileDamage: 10
